@@ -175,7 +175,10 @@ function showInlineSettings(actionId, currentValue) {
     <div class="fm-inline-settings">
       <div class="fm-settings-header">
         <span class="fm-settings-back" tabindex="0">←</span>
-        <span class="fm-settings-title">${actionId === 'reset' ? 'Reset URL' : 'Settings'}</span>
+        <div class="fm-settings-title-wrap">
+          <span class="fm-settings-title">${actionId === 'reset' ? 'Reset URL' : 'Settings'}</span>
+          ${actionId === 'reset' ? '<span class="fm-settings-desc">The website to open when you run the Reset action</span>' : ''}
+        </div>
       </div>
       <div class="fm-settings-field">
         <input type="text" class="fm-settings-input" value="${escapeHtml(currentValue)}" placeholder="chrome://newtab">
