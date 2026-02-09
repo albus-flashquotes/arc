@@ -233,7 +233,7 @@
         if (result.id === 'cleanup') {
           showToast(`✨ Closed ${response.closed} tabs, kept ${response.kept}`);
         } else if (result.id === 'reset') {
-          showToast(`🔄 ${response.message}`);
+          showToast(`💫 ${response.message}`);
         }
       }
     } else {

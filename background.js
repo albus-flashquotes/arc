@@ -38,7 +38,7 @@ const ACTIONS = [
     type: 'action',
     title: 'Reset',
     description: 'Close all tabs and open home page',
-    icon: '🔄',
+    icon: '💫',
     keywords: ['reset', 'close all', 'fresh', 'clear', 'new', 'start over', 'home'],
     hasSettings: true
   },
