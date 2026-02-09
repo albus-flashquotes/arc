@@ -3,9 +3,11 @@
 const input = document.querySelector('.fm-input');
 const resultsList = document.querySelector('.fm-results');
 const clearBtn = document.querySelector('.fm-clear-btn');
+const container = document.querySelector('.fm-container');
 
 let selectedIndex = 0;
 let currentResults = [];
+let settingsMode = null; // null or { actionId, ... }
 
 // Debounce helper
 function debounce(fn, ms) {
@@ -140,6 +142,14 @@ function updateFooter() {
   const footer = document.querySelector('.fm-footer');
   if (!footer) return;
   
+  if (settingsMode) {
+    footer.innerHTML = `
+      <span><kbd>↵</kbd> save</span>
+      <span><kbd>esc</kbd> cancel</span>
+    `;
+    return;
+  }
+  
   const result = currentResults[selectedIndex];
   const hasSettings = result?.type === 'action' && result.hasSettings;
   
@@ -151,9 +161,65 @@ function updateFooter() {
   `;
 }
 
-// Open settings for an action
+// Open inline settings for an action
 async function openActionSettings(actionId) {
-  await chrome.runtime.sendMessage({ action: 'executeAction', actionId, openSettings: true });
+  if (actionId === 'reset') {
+    settingsMode = { actionId: 'reset' };
+    const { resetUrl } = await chrome.storage.sync.get(['resetUrl']);
+    showInlineSettings('reset', resetUrl || '');
+  }
+}
+
+function showInlineSettings(actionId, currentValue) {
+  resultsList.innerHTML = `
+    <div class="fm-inline-settings">
+      <div class="fm-settings-header">
+        <span class="fm-settings-back" tabindex="0">←</span>
+        <span class="fm-settings-title">${actionId === 'reset' ? 'Reset URL' : 'Settings'}</span>
+      </div>
+      <div class="fm-settings-field">
+        <input type="text" class="fm-settings-input" value="${escapeHtml(currentValue)}" placeholder="chrome://newtab">
+      </div>
+      <div class="fm-settings-hint">Press Enter to save, Esc to cancel</div>
+    </div>
+  `;
+  
+  const settingsInput = resultsList.querySelector('.fm-settings-input');
+  const backBtn = resultsList.querySelector('.fm-settings-back');
+  
+  settingsInput.focus();
+  settingsInput.select();
+  
+  settingsInput.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      await saveInlineSetting(actionId, settingsInput.value);
+      e.preventDefault();
+    } else if (e.key === 'Escape') {
+      exitSettingsMode();
+      e.preventDefault();
+    }
+  });
+  
+  backBtn.addEventListener('click', exitSettingsMode);
+  
+  updateFooter();
+}
+
+async function saveInlineSetting(actionId, value) {
+  if (actionId === 'reset') {
+    await chrome.storage.sync.set({ resetUrl: value.trim() || 'chrome://newtab' });
+    showToast('✓ Saved');
+  }
+  exitSettingsMode();
+}
+
+function exitSettingsMode() {
+  settingsMode = null;
+  resultsList.innerHTML = '';
+  currentResults = [];
+  input.value = '';
+  input.focus();
+  updateFooter();
 }
 
 // Select result
