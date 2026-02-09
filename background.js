@@ -144,6 +144,20 @@ async function handleSearch(query) {
   const bookmarkTree = await chrome.bookmarks.getTree();
   const bookmarks = flattenBookmarks(bookmarkTree);
 
+  // Get cached favicons
+  const { faviconCache = {} } = await chrome.storage.local.get(['faviconCache']);
+
+  // Cache favicons from tabs
+  const newCache = { ...faviconCache };
+  for (const tab of tabs) {
+    if (tab.favIconUrl && tab.url && !tab.favIconUrl.startsWith('chrome://')) {
+      const cacheKey = getFaviconCacheKey(tab.url);
+      newCache[cacheKey] = tab.favIconUrl;
+    }
+  }
+  // Save updated cache (async, don't wait)
+  chrome.storage.local.set({ faviconCache: newCache });
+
   // Filter and score tabs
   const matchedTabs = tabs
     .filter(tab => {
@@ -172,13 +186,15 @@ async function handleSearch(query) {
     
     if (urlMatches || titleMatches) {
       const host = getHost(bm.url);
+      const cacheKey = getFaviconCacheKey(bm.url);
+      const cachedFavicon = newCache[cacheKey];
       const item = {
         type: 'bookmark',
         id: bm.id,
         title: bm.title && bm.title.trim() ? bm.title : host,
         url: bm.url,
         host: host,
-        favIconUrl: `https://www.google.com/s2/favicons?domain=${host}&sz=32`
+        favIconUrl: cachedFavicon || `https://www.google.com/s2/favicons?domain=${host}&sz=32`
       };
       
       if (urlMatches) {
@@ -252,6 +268,20 @@ function getHost(url) {
     return new URL(url).hostname.toLowerCase().replace('www.', '');
   } catch {
     return '';
+  }
+}
+
+function getFaviconCacheKey(url) {
+  // Cache by origin + pathname (without query/hash) for better matching
+  try {
+    const u = new URL(url);
+    // For Google services, include more of the path
+    if (u.hostname.includes('google.com')) {
+      return u.origin + u.pathname.split('/').slice(0, 2).join('/');
+    }
+    return u.origin + u.pathname;
+  } catch {
+    return url;
   }
 }
 
