@@ -1,7 +1,16 @@
 /* FlashMark - Command Palette Styles */
 
-#flashmark-palette *:focus {
-  outline: none;
+#flashmark-palette *:focus,
+#flashmark-palette *:focus-visible,
+#flashmark-palette *:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+#flashmark-palette input:focus,
+#flashmark-palette button:focus {
+  outline: none !important;
+  border-color: inherit;
 }
 
 #flashmark-palette {

@@ -11,8 +11,16 @@
       padding: 0;
     }
 
-    *:focus {
-      outline: none;
+    *:focus,
+    *:focus-visible,
+    *:focus-within {
+      outline: none !important;
+    }
+
+    input:focus,
+    button:focus {
+      outline: none !important;
+      box-shadow: none !important;
     }
 
     body {
