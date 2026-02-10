@@ -36,13 +36,40 @@ chrome.tabs.onCreated.addListener((tab) => {
 initMruList();
 
 // Check if we need to reopen palette after reload
-chrome.storage.local.get(['reopenPaletteAfterReload']).then(({ reopenPaletteAfterReload }) => {
-  if (reopenPaletteAfterReload) {
-    chrome.storage.local.remove('reopenPaletteAfterReload');
+chrome.storage.local.get(['reopenAfterReload']).then(async ({ reopenAfterReload }) => {
+  if (reopenAfterReload) {
+    chrome.storage.local.remove('reopenAfterReload');
+    const { tabId, isNewtab, url } = reopenAfterReload;
+    
     // Small delay to ensure extension is fully loaded
-    setTimeout(() => {
-      chrome.tabs.create({ url: chrome.runtime.getURL('newtab.html') });
-    }, 100);
+    await new Promise(r => setTimeout(r, 150));
+    
+    if (isNewtab) {
+      // Newtab page - just reload/navigate to newtab.html
+      try {
+        await chrome.tabs.update(tabId, { url: chrome.runtime.getURL('newtab.html') });
+      } catch {
+        // Tab might not exist, create new one
+        await chrome.tabs.create({ url: chrome.runtime.getURL('newtab.html') });
+      }
+    } else {
+      // Content script injection - reinject and show palette
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['content.js']
+        });
+        await chrome.scripting.insertCSS({
+          target: { tabId },
+          files: ['styles.css']
+        });
+        // Give content script time to initialize
+        await new Promise(r => setTimeout(r, 100));
+        await chrome.tabs.sendMessage(tabId, { action: 'show' });
+      } catch (e) {
+        console.log('Could not reinject palette:', e);
+      }
+    }
   }
 });
 
@@ -151,10 +178,10 @@ const ACTIONS = [
     id: 'settings',
     type: 'action',
     title: 'Settings',
-    description: 'Configure FlashMark actions',
+    description: 'Configure FlashMark preferences',
     icon: '⚙️',
-    keywords: ['settings', 'config', 'configure', 'preferences', 'options'],
-    hasSettings: false
+    keywords: ['settings', 'config', 'configure', 'preferences', 'options', 'search engine'],
+    hasSettings: true
   },
   {
     id: 'open-bookmarks',
@@ -257,6 +284,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   if (request.action === 'navigateOrSearch') {
     handleNavigateOrSearch(request.query).then(sendResponse);
+    return true;
+  }
+  if (request.action === 'getCurrentTabId') {
+    sendResponse(sender.tab?.id || null);
+    return true;
+  }
+  if (request.action === 'reload-extension') {
+    // Store tab info to reopen palette after reload
+    chrome.storage.local.set({ 
+      reopenAfterReload: {
+        tabId: request.tabId,
+        isNewtab: request.isNewtab || false,
+        url: request.url
+      }
+    }).then(() => {
+      chrome.runtime.reload();
+    });
     return true;
   }
 });
@@ -518,13 +562,13 @@ async function executeAction(actionId, openSettings = false) {
     case 'reset':
       return await actionReset();
     case 'settings':
-      await chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') });
-      return { success: true, message: 'Opened settings' };
+      // Settings are now handled inline via hasSettings: true
+      return { success: true, message: 'Settings handled inline' };
     case 'reload-extension':
-      // Set flag to reopen palette after reload completes
-      await chrome.storage.local.set({ reopenPaletteAfterReload: true });
+      // Reload is now handled via direct message with tab info
+      // This fallback just reloads without reopening
       chrome.runtime.reload();
-      return { success: true }; // Won't actually return, extension reloads
+      return { success: true };
     default:
       return { success: false, error: 'Unknown action' };
   }

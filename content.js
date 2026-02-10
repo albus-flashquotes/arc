@@ -233,9 +233,70 @@
       settingsMode = { actionId: 'reset' };
       const { resetUrl } = await chrome.storage.sync.get(['resetUrl']);
       showInlineSettings('reset', resetUrl || '');
+    } else if (actionId === 'settings') {
+      settingsMode = { actionId: 'settings' };
+      const { searchEngine } = await chrome.storage.sync.get(['searchEngine']);
+      showSettingsPanel(searchEngine || 'google');
     }
   }
 
+  function showSettingsPanel(currentEngine) {
+    const engines = [
+      { id: 'google', name: 'Google' },
+      { id: 'duckduckgo', name: 'DuckDuckGo' },
+      { id: 'bing', name: 'Bing' },
+      { id: 'brave', name: 'Brave Search' },
+      { id: 'ecosia', name: 'Ecosia' },
+      { id: 'perplexity', name: 'Perplexity AI' },
+      { id: 'chatgpt', name: 'ChatGPT' },
+      { id: 'gemini', name: 'Gemini' },
+      { id: 'claude', name: 'Claude' }
+    ];
+    
+    const options = engines.map(e => 
+      `<option value="${e.id}" ${e.id === currentEngine ? 'selected' : ''}>${e.name}</option>`
+    ).join('');
+    
+    resultsList.innerHTML = `
+      <div class="fm-inline-settings">
+        <div class="fm-settings-header">
+          <span class="fm-settings-back">←</span>
+          <div class="fm-settings-title-wrap">
+            <span class="fm-settings-title">Settings</span>
+            <span class="fm-settings-desc">Configure FlashMark preferences</span>
+          </div>
+        </div>
+        <div class="fm-settings-row">
+          <div class="fm-settings-label">Search Engine</div>
+          <select class="fm-settings-select">
+            ${options}
+          </select>
+        </div>
+        <div class="fm-settings-hint">Changes save automatically</div>
+      </div>
+    `;
+    
+    const select = resultsList.querySelector('.fm-settings-select');
+    const backBtn = resultsList.querySelector('.fm-settings-back');
+    
+    select.focus();
+    
+    select.addEventListener('change', async () => {
+      await chrome.storage.sync.set({ searchEngine: select.value });
+      showToast('✓ Saved');
+    });
+    
+    select.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        exitSettingsMode();
+        e.preventDefault();
+      }
+    });
+    
+    backBtn.addEventListener('click', exitSettingsMode);
+    updateFooter();
+  }
+  
   function showInlineSettings(actionId, currentValue) {
     resultsList.innerHTML = `
       <div class="fm-inline-settings">
@@ -352,6 +413,19 @@
     }
     
     if (result.type === 'action') {
+      // Special handling for reload - show spinner then reload
+      if (result.id === 'reload-extension') {
+        showReloadingState();
+        // Send reload message with tab info
+        chrome.runtime.sendMessage({ 
+          action: 'reload-extension',
+          tabId: await getCurrentTabId(),
+          isNewtab: false,
+          url: window.location.href
+        });
+        return;
+      }
+      
       const response = await chrome.runtime.sendMessage({ action: 'executeAction', actionId: result.id });
       if (response.success) {
         if (result.id === 'cleanup') {
@@ -364,6 +438,27 @@
       await chrome.runtime.sendMessage({ action: 'openResult', result });
     }
     hidePalette();
+  }
+  
+  async function getCurrentTabId() {
+    return new Promise(resolve => {
+      chrome.runtime.sendMessage({ action: 'getCurrentTabId' }, resolve);
+    });
+  }
+  
+  function showReloadingState() {
+    const searchWrap = palette.querySelector('.fm-search-wrap');
+    if (searchWrap) searchWrap.style.display = 'none';
+    
+    resultsList.innerHTML = `
+      <div class="fm-reloading">
+        <div class="fm-spinner"></div>
+        <div class="fm-reloading-text">Reloading...</div>
+      </div>
+    `;
+    
+    const footer = palette.querySelector('.fm-footer');
+    if (footer) footer.innerHTML = '';
   }
 
   function showToast(message) {
@@ -481,6 +576,9 @@
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === 'toggle') {
       togglePalette();
+    }
+    if (msg.action === 'show') {
+      showPalette();
     }
     if (msg.action === 'quick-switch') {
       if (quickSwitchMode) {
