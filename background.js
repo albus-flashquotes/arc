@@ -204,6 +204,15 @@ const ACTIONS = [
     keywords: ['open', 'passwords', 'password manager', 'keys', 'chrome'],
     hasSettings: false,
     chromeUrl: 'chrome://settings/passwords'
+  },
+  {
+    id: 'reload-extension',
+    type: 'action',
+    title: 'Reload Extension',
+    description: 'Reload FlashMark (dev mode)',
+    icon: '🔄',
+    keywords: ['reload', 'refresh', 'restart', 'dev', 'extension', 'update'],
+    hasSettings: false
   }
 ];
 
@@ -452,6 +461,9 @@ async function executeAction(actionId, openSettings = false) {
     case 'settings':
       await chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') });
       return { success: true, message: 'Opened settings' };
+    case 'reload-extension':
+      chrome.runtime.reload();
+      return { success: true }; // Won't actually return, extension reloads
     default:
       return { success: false, error: 'Unknown action' };
   }
