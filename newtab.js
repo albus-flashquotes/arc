@@ -51,12 +51,13 @@ async function onSearch() {
   }
 
   const response = await chrome.runtime.sendMessage({ action: 'search', query });
+  // Priority: tabs first, then bookmarks, then actions last
   currentResults = [
-    ...response.actions,
-    ...(response.bookmarksPrimary || []),
     ...response.tabs,
+    ...(response.bookmarksPrimary || []),
     ...(response.bookmarksSecondary || []),
-    ...(response.bookmarks || [])
+    ...(response.bookmarks || []),
+    ...response.actions
   ];
   selectedIndex = 0;
   renderResults();
