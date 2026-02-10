@@ -35,6 +35,17 @@ chrome.tabs.onCreated.addListener((tab) => {
 // Initialize on startup
 initMruList();
 
+// Check if we need to reopen palette after reload
+chrome.storage.local.get(['reopenPaletteAfterReload']).then(({ reopenPaletteAfterReload }) => {
+  if (reopenPaletteAfterReload) {
+    chrome.storage.local.remove('reopenPaletteAfterReload');
+    // Small delay to ensure extension is fully loaded
+    setTimeout(() => {
+      chrome.tabs.create({ url: chrome.runtime.getURL('newtab.html') });
+    }, 100);
+  }
+});
+
 // Proactively cache favicons from all tabs
 async function cacheFaviconsFromAllTabs() {
   const tabs = await chrome.tabs.query({});
@@ -510,6 +521,8 @@ async function executeAction(actionId, openSettings = false) {
       await chrome.tabs.create({ url: chrome.runtime.getURL('settings.html') });
       return { success: true, message: 'Opened settings' };
     case 'reload-extension':
+      // Set flag to reopen palette after reload completes
+      await chrome.storage.local.set({ reopenPaletteAfterReload: true });
       chrome.runtime.reload();
       return { success: true }; // Won't actually return, extension reloads
     default:
