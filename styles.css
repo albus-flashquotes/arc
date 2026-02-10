@@ -336,24 +336,12 @@
   transform: translateX(-50%) translateY(0);
 }
 
-/* Quick Switch Mode */
-#flashmark-palette.fm-quick-switch .fm-modal {
-  max-width: 500px;
-}
-
+/* Quick Switch Mode - same width as main palette */
 #flashmark-palette.fm-quick-switch .fm-search-wrap {
   display: none;
 }
 
 #flashmark-palette.fm-quick-switch .fm-results {
   max-height: 400px;
-  padding-top: 12px;
-}
-
-#flashmark-palette.fm-quick-switch .fm-result {
-  padding: 10px 16px;
-}
-
-#flashmark-palette.fm-quick-switch .fm-badge {
-  display: none;
+  padding-top: 8px;
 }
