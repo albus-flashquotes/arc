@@ -296,14 +296,7 @@ async function selectResult(index) {
     // Special handling for reload - show spinner then reload
     if (result.id === 'reload-extension') {
       showReloadingState();
-      // Get current tab ID for newtab page
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      chrome.runtime.sendMessage({ 
-        action: 'reload-extension',
-        tabId: tab?.id,
-        isNewtab: true,
-        url: window.location.href
-      });
+      chrome.runtime.sendMessage({ action: 'reload-extension' });
       return;
     }
     

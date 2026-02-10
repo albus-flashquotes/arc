@@ -35,46 +35,6 @@ chrome.tabs.onCreated.addListener((tab) => {
 // Initialize on startup
 initMruList();
 
-// Check if we need to reopen palette after reload
-chrome.storage.local.get(['reopenAfterReload']).then(async (result) => {
-  console.log('Startup check - reopenAfterReload:', result.reopenAfterReload);
-  const data = result.reopenAfterReload;
-  if (!data) return;
-  
-  // Clear flag immediately
-  chrome.storage.local.remove('reopenAfterReload');
-  
-  const { tabId, isNewtab } = data;
-  
-  if (isNewtab) {
-    // Newtab - just open fresh newtab.html
-    chrome.tabs.create({ url: chrome.runtime.getURL('newtab.html') });
-    // Close the old broken tab if it exists
-    if (tabId) {
-      chrome.tabs.remove(tabId).catch(() => {});
-    }
-  } else if (tabId) {
-    // Content script - reinject and show palette
-    setTimeout(async () => {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: ['content.js']
-        });
-        await chrome.scripting.insertCSS({
-          target: { tabId },
-          files: ['styles.css']
-        });
-        setTimeout(() => {
-          chrome.tabs.sendMessage(tabId, { action: 'show' }).catch(() => {});
-        }, 100);
-      } catch (e) {
-        console.log('Could not reinject:', e);
-      }
-    }, 100);
-  }
-});
-
 // Proactively cache favicons from all tabs
 async function cacheFaviconsFromAllTabs() {
   const tabs = await chrome.tabs.query({});
@@ -288,23 +248,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     handleNavigateOrSearch(request.query).then(sendResponse);
     return true;
   }
-  if (request.action === 'getCurrentTabId') {
-    sendResponse(sender.tab?.id || null);
-    return true;
-  }
   if (request.action === 'reload-extension') {
-    // Store tab info to reopen palette after reload
-    const tabId = request.tabId || sender.tab?.id;
-    const data = { tabId, isNewtab: request.isNewtab || false };
-    
-    // Write, verify, then reload
-    chrome.storage.local.set({ reopenAfterReload: data }).then(async () => {
-      // Verify write completed
-      const check = await chrome.storage.local.get(['reopenAfterReload']);
-      console.log('Reload data saved:', check.reopenAfterReload);
-      // Now reload
-      chrome.runtime.reload();
-    });
+    chrome.runtime.reload();
     return true;
   }
 });

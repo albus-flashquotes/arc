@@ -416,13 +416,7 @@
       // Special handling for reload - show spinner then reload
       if (result.id === 'reload-extension') {
         showReloadingState();
-        // Send reload message with tab info
-        chrome.runtime.sendMessage({ 
-          action: 'reload-extension',
-          tabId: await getCurrentTabId(),
-          isNewtab: false,
-          url: window.location.href
-        });
+        chrome.runtime.sendMessage({ action: 'reload-extension' });
         return;
       }
       
@@ -444,12 +438,6 @@
       await chrome.runtime.sendMessage({ action: 'openResult', result });
     }
     hidePalette();
-  }
-  
-  async function getCurrentTabId() {
-    return new Promise(resolve => {
-      chrome.runtime.sendMessage({ action: 'getCurrentTabId' }, resolve);
-    });
   }
   
   function showReloadingState() {
