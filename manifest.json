@@ -17,6 +17,13 @@
         "mac": "Command+Shift+K"
       },
       "description": "Toggle FlashMark palette"
+    },
+    "quick-switch": {
+      "suggested_key": {
+        "default": "Ctrl+Q",
+        "mac": "Ctrl+Q"
+      },
+      "description": "Quick switch between recent tabs"
     }
   },
   "icons": {

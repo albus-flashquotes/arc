@@ -1,5 +1,40 @@
 // FlashMark - Background Service Worker
 
+// MRU (Most Recently Used) tab tracking
+let mruTabIds = []; // Ordered list of tab IDs, most recent first
+
+// Initialize MRU from current tabs
+async function initMruList() {
+  const tabs = await chrome.tabs.query({ currentWindow: true });
+  // Start with current tab order, active tab first
+  const activeTab = tabs.find(t => t.active);
+  mruTabIds = tabs.map(t => t.id);
+  if (activeTab) {
+    mruTabIds = [activeTab.id, ...mruTabIds.filter(id => id !== activeTab.id)];
+  }
+}
+
+// Track tab activations for MRU
+chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
+  // Move activated tab to front of MRU list
+  mruTabIds = [tabId, ...mruTabIds.filter(id => id !== tabId)];
+});
+
+// Remove closed tabs from MRU
+chrome.tabs.onRemoved.addListener((tabId) => {
+  mruTabIds = mruTabIds.filter(id => id !== tabId);
+});
+
+// Add new tabs to MRU
+chrome.tabs.onCreated.addListener((tab) => {
+  if (tab.id && !mruTabIds.includes(tab.id)) {
+    mruTabIds.unshift(tab.id);
+  }
+});
+
+// Initialize on startup
+initMruList();
+
 // Proactively cache favicons from all tabs
 async function cacheFaviconsFromAllTabs() {
   const tabs = await chrome.tabs.query({});
@@ -52,6 +87,30 @@ chrome.commands.onCommand.addListener(async (command) => {
       } catch (e) {
         // Can't inject into chrome:// pages, etc.
         console.log('Cannot inject into this page:', e);
+      }
+    }
+  }
+  
+  if (command === 'quick-switch') {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+        await chrome.scripting.insertCSS({
+          target: { tabId: tab.id },
+          files: ['styles.css']
+        });
+        chrome.tabs.sendMessage(tab.id, { action: 'quick-switch' });
+      } catch (e) {
+        // Can't inject into chrome:// pages, fallback to direct switch
+        console.log('Cannot inject, switching directly');
+        // Direct switch to previous tab
+        if (mruTabIds.length > 1) {
+          await chrome.tabs.update(mruTabIds[1], { active: true });
+        }
       }
     }
   }
@@ -166,7 +225,58 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse(action || null);
     return true;
   }
+  if (request.action === 'getMruTabs') {
+    getMruTabs().then(sendResponse);
+    return true;
+  }
+  if (request.action === 'switchToTab') {
+    chrome.tabs.update(request.tabId, { active: true }).then(() => {
+      sendResponse({ success: true });
+    });
+    return true;
+  }
 });
+
+// Get tabs sorted by MRU order
+async function getMruTabs() {
+  const tabs = await chrome.tabs.query({ currentWindow: true });
+  const { faviconCache = {} } = await chrome.storage.local.get(['faviconCache']);
+  
+  // Create a map for quick lookup
+  const tabMap = new Map(tabs.map(t => [t.id, t]));
+  
+  // Sort tabs by MRU order
+  const sortedTabs = [];
+  for (const tabId of mruTabIds) {
+    const tab = tabMap.get(tabId);
+    if (tab) {
+      sortedTabs.push({
+        type: 'tab',
+        id: tab.id,
+        title: tab.title || 'Untitled',
+        url: tab.url,
+        host: getHost(tab.url),
+        favIconUrl: tab.favIconUrl || faviconCache[getFaviconCacheKey(tab.url)] || null
+      });
+    }
+  }
+  
+  // Add any tabs not in MRU list (shouldn't happen, but just in case)
+  for (const tab of tabs) {
+    if (!mruTabIds.includes(tab.id)) {
+      sortedTabs.push({
+        type: 'tab',
+        id: tab.id,
+        title: tab.title || 'Untitled',
+        url: tab.url,
+        host: getHost(tab.url),
+        favIconUrl: tab.favIconUrl || faviconCache[getFaviconCacheKey(tab.url)] || null
+      });
+    }
+  }
+  
+  return sortedTabs;
+}
 
 async function handleSearch(query) {
   const q = query.toLowerCase().trim();

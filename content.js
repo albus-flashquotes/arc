@@ -13,6 +13,8 @@
   let selectedIndex = 0;
   let currentResults = [];
   let settingsMode = null;
+  let quickSwitchMode = false;
+  let ctrlHeld = false;
 
   function createPalette() {
     if (palette) return palette;
@@ -353,10 +355,111 @@
     };
   }
 
+  // Quick Switch mode - show MRU tabs
+  async function showQuickSwitch() {
+    createPalette();
+    quickSwitchMode = true;
+    ctrlHeld = true;
+    
+    // Get MRU tabs
+    const tabs = await chrome.runtime.sendMessage({ action: 'getMruTabs' });
+    currentResults = tabs;
+    
+    // Pre-select second item (previous tab) for quick swap
+    selectedIndex = tabs.length > 1 ? 1 : 0;
+    
+    // Hide search input in quick switch mode
+    const searchWrap = palette.querySelector('.fm-search-wrap');
+    if (searchWrap) searchWrap.style.display = 'none';
+    
+    palette.classList.add('fm-visible');
+    palette.classList.add('fm-quick-switch');
+    
+    renderResults();
+    updateQuickSwitchFooter();
+    
+    // Listen for Ctrl release to switch
+    document.addEventListener('keyup', onQuickSwitchKeyUp);
+    document.addEventListener('keydown', onQuickSwitchKeyDown);
+  }
+  
+  function onQuickSwitchKeyDown(e) {
+    if (quickSwitchMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (e.key === 'q' && e.ctrlKey) {
+        // Cycle to next tab
+        selectedIndex = (selectedIndex + 1) % currentResults.length;
+        renderResults();
+      } else if (e.key === 'ArrowDown' || e.key === 'Tab') {
+        selectedIndex = (selectedIndex + 1) % currentResults.length;
+        renderResults();
+      } else if (e.key === 'ArrowUp' || (e.key === 'Tab' && e.shiftKey)) {
+        selectedIndex = (selectedIndex - 1 + currentResults.length) % currentResults.length;
+        renderResults();
+      } else if (e.key === 'Escape') {
+        hideQuickSwitch();
+      } else if (e.key === 'Enter') {
+        switchToSelectedTab();
+      }
+    }
+  }
+  
+  function onQuickSwitchKeyUp(e) {
+    if (quickSwitchMode && e.key === 'Control') {
+      // Ctrl released - switch to selected tab
+      switchToSelectedTab();
+    }
+  }
+  
+  async function switchToSelectedTab() {
+    const result = currentResults[selectedIndex];
+    if (result?.id) {
+      await chrome.runtime.sendMessage({ action: 'switchToTab', tabId: result.id });
+    }
+    hideQuickSwitch();
+  }
+  
+  function hideQuickSwitch() {
+    quickSwitchMode = false;
+    ctrlHeld = false;
+    
+    // Show search input again
+    const searchWrap = palette?.querySelector('.fm-search-wrap');
+    if (searchWrap) searchWrap.style.display = '';
+    
+    palette?.classList.remove('fm-quick-switch');
+    hidePalette();
+    
+    document.removeEventListener('keyup', onQuickSwitchKeyUp);
+    document.removeEventListener('keydown', onQuickSwitchKeyDown);
+  }
+  
+  function updateQuickSwitchFooter() {
+    const footer = palette?.querySelector('.fm-footer');
+    if (!footer) return;
+    
+    footer.innerHTML = `
+      <span><kbd>ctrl+Q</kbd> next</span>
+      <span><kbd>↑↓</kbd> navigate</span>
+      <span>release <kbd>ctrl</kbd> to switch</span>
+    `;
+  }
+
   // Listen for toggle message
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.action === 'toggle') {
       togglePalette();
+    }
+    if (msg.action === 'quick-switch') {
+      if (quickSwitchMode) {
+        // Already in quick switch - cycle
+        selectedIndex = (selectedIndex + 1) % currentResults.length;
+        renderResults();
+      } else {
+        showQuickSwitch();
+      }
     }
   });
 })();
