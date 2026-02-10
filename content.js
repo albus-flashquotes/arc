@@ -59,15 +59,16 @@
     clearBtn.addEventListener('click', clearSearch);
 
     // Block all keyboard events from reaching the page when palette is open
+    // Use bubble phase (false) so events reach input first, then stop propagating to page
     palette.addEventListener('keydown', (e) => {
       e.stopPropagation();
-    }, true);
+    }, false);
     palette.addEventListener('keyup', (e) => {
       e.stopPropagation();
-    }, true);
+    }, false);
     palette.addEventListener('keypress', (e) => {
       e.stopPropagation();
-    }, true);
+    }, false);
 
     return palette;
   }
