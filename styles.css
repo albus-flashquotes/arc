@@ -140,6 +140,11 @@
   gap: 12px;
 }
 
+/* In keyboard mode, disable mouse interactions on results */
+#arc-palette.keyboard-mode .fm-results {
+  pointer-events: none;
+}
+
 /* Only show hover when mouse has moved (not in keyboard mode) */
 #arc-palette:not(.keyboard-mode) .fm-result:hover,
 .fm-result.fm-selected {
