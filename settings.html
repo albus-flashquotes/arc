@@ -124,6 +124,46 @@
     .back-link:hover {
       color: #fff;
     }
+    
+    kbd {
+      background: #2a2a2a;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-family: inherit;
+      font-size: 13px;
+      color: #fff;
+      display: inline-block;
+    }
+    
+    kbd.not-set {
+      color: #f87171;
+      border-color: rgba(248,113,113,0.3);
+      background: rgba(248,113,113,0.1);
+    }
+    
+    kbd.set {
+      color: #4ade80;
+      border-color: rgba(74,222,128,0.3);
+      background: rgba(74,222,128,0.1);
+    }
+    
+    .shortcut-btn {
+      background: #6366f1;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #fff;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    }
+    
+    .shortcut-btn:hover {
+      background: #4f46e5;
+    }
   </style>
 </head>
 <body>
@@ -132,6 +172,34 @@
     
     <h1>⚡ Arc Settings</h1>
     <p class="subtitle">Configure your command palette experience</p>
+    
+    <div class="section">
+      <div class="section-title">Keyboard Shortcuts</div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Command Palette</div>
+          <div class="setting-desc">Open the search palette</div>
+        </div>
+        <div class="shortcut-display">
+          <kbd id="shortcut-palette">Not set</kbd>
+        </div>
+      </div>
+      
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Quick Tab Switch</div>
+          <div class="setting-desc">Cycle through recent tabs (recommended: <strong>Ctrl+Q</strong>)</div>
+        </div>
+        <div class="shortcut-display">
+          <kbd id="shortcut-quick-switch">Not set</kbd>
+        </div>
+      </div>
+      
+      <div class="setting-row" style="border-bottom: none; padding-top: 16px;">
+        <button id="open-shortcuts" class="shortcut-btn">Configure Shortcuts in Chrome</button>
+      </div>
+    </div>
     
     <div class="section">
       <div class="section-title">Search</div>
@@ -162,6 +230,49 @@
     const searchEngineSelect = document.getElementById('search-engine');
     const toast = document.getElementById('toast');
     const closeBtn = document.getElementById('close-btn');
+    const openShortcutsBtn = document.getElementById('open-shortcuts');
+    const shortcutPalette = document.getElementById('shortcut-palette');
+    const shortcutQuickSwitch = document.getElementById('shortcut-quick-switch');
+    
+    // Load keyboard shortcuts
+    function loadShortcuts() {
+      chrome.commands.getAll((commands) => {
+        commands.forEach((command) => {
+          if (command.name === 'toggle-palette') {
+            if (command.shortcut) {
+              shortcutPalette.textContent = command.shortcut;
+              shortcutPalette.classList.remove('not-set');
+              shortcutPalette.classList.add('set');
+            } else {
+              shortcutPalette.textContent = 'Not set';
+              shortcutPalette.classList.remove('set');
+              shortcutPalette.classList.add('not-set');
+            }
+          }
+          if (command.name === 'quick-switch') {
+            if (command.shortcut) {
+              shortcutQuickSwitch.textContent = command.shortcut;
+              shortcutQuickSwitch.classList.remove('not-set');
+              shortcutQuickSwitch.classList.add('set');
+            } else {
+              shortcutQuickSwitch.textContent = 'Not set — click below to configure';
+              shortcutQuickSwitch.classList.remove('set');
+              shortcutQuickSwitch.classList.add('not-set');
+            }
+          }
+        });
+      });
+    }
+    
+    loadShortcuts();
+    
+    // Refresh shortcuts when window gains focus (user may have set them)
+    window.addEventListener('focus', loadShortcuts);
+    
+    // Open Chrome shortcuts page
+    openShortcutsBtn.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    });
     
     // Load current settings
     chrome.storage.sync.get(['searchEngine'], (result) => {
