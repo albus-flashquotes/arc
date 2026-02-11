@@ -16,6 +16,7 @@
   let quickSwitchMode = false;
   let ctrlHeld = false;
   let missingShortcuts = [];
+  let keyboardMode = true; // Start in keyboard mode, ignore mouse until it moves
 
   function createPalette() {
     if (palette) return palette;
@@ -60,6 +61,9 @@
     input.addEventListener('keydown', onKeyDown);
     backdrop.addEventListener('click', hidePalette);
     clearBtn.addEventListener('click', clearSearch);
+    
+    // Track mouse movement to exit keyboard mode
+    palette.addEventListener('mousemove', onMouseMove);
 
     // Block all keyboard events from reaching the page when palette is open
     // Use bubble phase (false) so events reach input first, then stop propagating to page
@@ -113,6 +117,9 @@
   async function showPalette() {
     createPalette();
     palette.classList.add('fm-visible');
+    // Start in keyboard mode - ignore mouse hover until mouse actually moves
+    keyboardMode = true;
+    palette.classList.add('keyboard-mode');
     input.value = '';
     resultsList.innerHTML = '';
     currentResults = [];
@@ -120,6 +127,19 @@
     await checkShortcuts();
     renderShortcutWarning();
     setTimeout(() => input.focus(), 10);
+  }
+  
+  function onMouseMove(e) {
+    // Exit keyboard mode when mouse moves (but not on first open)
+    if (keyboardMode && e.movementX !== 0 || e.movementY !== 0) {
+      keyboardMode = false;
+      palette?.classList.remove('keyboard-mode');
+    }
+  }
+  
+  function enableKeyboardMode() {
+    keyboardMode = true;
+    palette?.classList.add('keyboard-mode');
   }
   
   function renderShortcutWarning() {
@@ -217,10 +237,17 @@
       `;
     }).join('');
 
-    // Add click handlers
+    // Add click and hover handlers
     resultsList.querySelectorAll('.fm-result').forEach(el => {
       el.addEventListener('click', () => {
         selectResult(parseInt(el.dataset.index));
+      });
+      // Update selection on mouse enter (only when not in keyboard mode)
+      el.addEventListener('mouseenter', () => {
+        if (!keyboardMode) {
+          selectedIndex = parseInt(el.dataset.index);
+          renderResults();
+        }
       });
     });
     
@@ -242,10 +269,12 @@
       }
       e.preventDefault();
     } else if (e.key === 'ArrowDown') {
+      enableKeyboardMode();
       selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
       renderResults();
       e.preventDefault();
     } else if (e.key === 'ArrowUp') {
+      enableKeyboardMode();
       selectedIndex = Math.max(selectedIndex - 1, 0);
       renderResults();
       e.preventDefault();

@@ -140,7 +140,8 @@
   gap: 12px;
 }
 
-.fm-result:hover,
+/* Only show hover when mouse has moved (not in keyboard mode) */
+#arc-palette:not(.keyboard-mode) .fm-result:hover,
 .fm-result.fm-selected {
   background: rgba(255,255,255,0.08);
 }
