@@ -108,8 +108,10 @@
       missingShortcuts = [];
       const palette = commands?.find(c => c.name === 'toggle-palette');
       const quickSwitch = commands?.find(c => c.name === 'quick-switch');
+      const profileSwitch = commands?.find(c => c.name === 'profile-switch');
       if (!palette?.shortcut) missingShortcuts.push('Command Palette');
       if (!quickSwitch?.shortcut) missingShortcuts.push('Quick Tab Switch');
+      if (!profileSwitch?.shortcut) missingShortcuts.push('Profile Switch');
     } catch (e) {
       missingShortcuts = [];
     }
@@ -327,6 +329,7 @@
     const commands = await chrome.runtime.sendMessage({ type: 'getCommands' });
     const paletteShortcut = commands?.find(c => c.name === 'toggle-palette')?.shortcut || 'Not set';
     const quickSwitchShortcut = commands?.find(c => c.name === 'quick-switch')?.shortcut || 'Not set';
+    const profileSwitchShortcut = commands?.find(c => c.name === 'profile-switch')?.shortcut || 'Not set';
     
     const options = engines.map(e => 
       `<option value="${e.id}" ${e.id === currentEngine ? 'selected' : ''}>${e.name}</option>`
@@ -348,7 +351,11 @@
         </div>
         <div class="fm-settings-row">
           <div class="fm-settings-label">Quick Tab Switch</div>
-          <kbd class="fm-shortcut ${quickSwitchShortcut === 'Not set' ? 'not-set' : ''}">${quickSwitchShortcut || 'Not set'}</kbd>
+          <kbd class="fm-shortcut ${quickSwitchShortcut === 'Not set' ? 'not-set' : ''}">${quickSwitchShortcut}</kbd>
+        </div>
+        <div class="fm-settings-row">
+          <div class="fm-settings-label">Profile Switch</div>
+          <kbd class="fm-shortcut ${profileSwitchShortcut === 'Not set' ? 'not-set' : ''}">${profileSwitchShortcut}</kbd>
         </div>
         <div class="fm-settings-row">
           <button class="fm-configure-shortcuts-btn">Configure Shortcuts in Chrome</button>
